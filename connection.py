@@ -16,6 +16,7 @@ class connection:
         self.start_time = params['start_time']
         self.end_time = params['end_time']
         self.keywords = params['keywords']
+        self.granularity = 'HOUR' if 'granularity' not in params else params['granularity']
 
         self.geo = '' if 'geo' not in params else params['geo']
         self.cookie = None if 'cookie' not in params else params['cookie']
@@ -24,7 +25,7 @@ class connection:
     def build_timeseries_options(self, tkn):
         """ build_timeseries_options : return the URL formatted version of the parameters """
     
-        return {'hl': 'en-US', 'tz': 240, 'token': tkn, 'req': '{"time":"' + self.format_times() + '","resolution":"HOUR","locale":"en-US","comparisonItem":[{"geo":{},"complexKeywordsRestriction":{"keyword":[{"type":"BROAD","value":"' + self.keywords + '"}]}}],"requestOptions":{"property":"","backend":"CM","category":0}}'}
+        return {'hl': 'en-US', 'tz': 240, 'token': tkn, 'req': '{"time":"' + self.format_times() + '","resolution":"' + self.granularity + '","locale":"en-US","comparisonItem":[{"geo":{},"complexKeywordsRestriction":{"keyword":[{"type":"BROAD","value":"' + self.keywords + '"}]}}],"requestOptions":{"property":"","backend":"CM","category":0}}'}
 
 
     def build_explore_options(self):
@@ -74,14 +75,16 @@ class connection:
 
 
         if (r.status_code != 200):           
-            raise GoogleTrendsServerError
+            raise GoogleTrendsServerError(r.text, r.status_code)
         
         return_value = json.loads(r.text[4:])
         for widget in return_value['widgets']:
             if 'id' in widget and widget['id'] == "TIMESERIES":
+                if widget["request"]["resolution"] != self.granularity:
+                    raise ResolutionIncompatibility(widget["request"]["resolution"],self.granularity)
                 return widget['token']
         
-        raise GoogleTrendsServerError
+        raise Error
 
     
     def run(self):
@@ -100,6 +103,6 @@ class connection:
                 break
 
         if (r.status_code != 200):           
-            raise GoogleTrendsServerError
+            raise GoogleTrendsServerError(r.text)
 
         return r.text

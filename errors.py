@@ -8,5 +8,14 @@ class Error(Exception):
 
 class GoogleTrendsServerError(Error):
    """Raised when the google trends server returns an error"""
-   pass
+   def __init__(self,  message="NOT SPECIFIED", code="NOT SPECIFIED"):
+       print(message[0:100])
+       print(code)
+       self.message = message
+   
 
+class ResolutionIncompatibility(Error):
+    """Raised when the offered resolution is not the one specified"""
+    def __init__(self, offered, wanted):
+        self.offered = offered;
+        self.wanted = wanted
