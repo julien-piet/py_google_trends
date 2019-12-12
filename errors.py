@@ -3,6 +3,8 @@
 
 class Error(Exception):
    """Base class for other exceptions"""
+   def __init__(self):
+       print("STD error")
    pass
 
 

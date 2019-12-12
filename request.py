@@ -94,7 +94,6 @@ def recursive_ts(start, end, keyword, granularity='HOUR', geo="", debug=False):
     try:
         values = timeseries_parser(connection({'start_time': datetime.datetime.fromtimestamp(st), 'end_time': datetime.datetime.fromtimestamp(et), 'keywords': keyword, 'geo': geo,'granularity': granularity}).run())
         results.update({key: {'time': key, 'value': values[key], 'ratio': 1} for key in values})
-
     except ResolutionIncompatibility:
         
         if debug :
@@ -106,11 +105,14 @@ def recursive_ts(start, end, keyword, granularity='HOUR', geo="", debug=False):
 
         first_segment = recursive_ts(start, end_first, keyword, granularity, geo, debug)
         second_segment = recursive_ts(start_second, end, keyword, granularity, geo, debug)
-        results.update(first_segment)
-        intersect = {key: results[key]['ratio']*results[key]['value']/(second_segment[key]['ratio'] * second_segment[key]['value']) for key in second_segment if key in results and results[key]['value'] and second_segment[key]['value']}
-        ratio = statistics.mean(intersect.values())
-
-        results.update({key: {'time': second_segment[key]['time'], 'value': second_segment[key]['value'], 'ratio': ratio * second_segment[key]['ratio']} for key in second_segment})
+        if len(first_segment) and len(second_segment):
+            results.update(first_segment)
+            intersect = {key: results[key]['ratio']*results[key]['value']/(second_segment[key]['ratio'] * second_segment[key]['value']) for key in second_segment if key in results and results[key]['value'] and second_segment[key]['value']}
+            ratio = statistics.mean(intersect.values())
+            results.update({key: {'time': second_segment[key]['time'], 'value': second_segment[key]['value'], 'ratio': ratio * second_segment[key]['ratio']} for key in second_segment})
+        else:
+            results.update(first_segment)
+            results.update(second_segment)
 
     finally:
         return results
@@ -118,11 +120,11 @@ def recursive_ts(start, end, keyword, granularity='HOUR', geo="", debug=False):
 
 
 
-rslt = recursive_ts("2015-01-01T00:00:00",  "2019-01-01T00:00:00", "ethereum", debug=True)
+rslt = recursive_ts("2015-12-01T00:00:00",  "2016-02-01T00:00:00", "christmas", debug=True)
 #rslt = timeseries("2015-01-01T00:00:00",  "2016-01-01T00:00:00", "ethereum")
 
 # rslt = timeseries_parser(connection({'start_time': datetime.datetime.strptime("2015-01-01T00:00:00", '%Y-%m-%dT%H:%M:%S'), 'end_time': datetime.datetime.strptime("2015-01-08T00:00:00", '%Y-%m-%dT%H:%M:%S'), 'keywords': "TEST", 'geo': ""}).run())
 
-
-# plt.plot([key for key in rslt], [rslt[key]['value'] * rslt[key]['ratio'] for key in rslt])
-# plt.savefig('test.png')
+print(rslt)
+plt.plot([key for key in rslt], [rslt[key]['value'] * rslt[key]['ratio'] for key in rslt])
+plt.savefig('test.png')

@@ -73,7 +73,6 @@ class connection:
                 break
             i += 1
 
-
         if (r.status_code != 200):           
             raise GoogleTrendsServerError(r.text, r.status_code)
         
