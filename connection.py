@@ -25,13 +25,36 @@ class connection:
     def build_timeseries_options(self, tkn):
         """ build_timeseries_options : return the URL formatted version of the parameters """
     
-        return {'hl': 'en-US', 'tz': 240, 'token': tkn, 'req': '{"time":"' + self.format_times() + '","resolution":"' + self.granularity + '","locale":"en-US","comparisonItem":[{"geo":{},"complexKeywordsRestriction":{"keyword":[{"type":"BROAD","value":"' + self.keywords + '"}]}}],"requestOptions":{"property":"","backend":"CM","category":0}}'}
+        backend = "CM"
+        if self.granularity in ["DAY", "WEEK", "MONTH"]:
+            backend = "IZG"
+
+        citem = "["
+        first = True
+        for kw in self.keywords:
+            if not first:
+                citem += ","
+            if first:
+                first = False
+            citem += '{"geo":{},"complexKeywordsRestriction":{"keyword":[{"type":"BROAD","value":"' + kw + '"}]}}'
+        citem += ']'
+
+        return {'hl': 'en-US', 'tz': 240, 'token': tkn, 'req': '{"time":"' + self.format_times() + '","resolution":"' + self.granularity + '","locale":"en-US","comparisonItem":' + citem + ',"requestOptions":{"property":"","backend":"' + backend + '","category":0}}'}
 
 
     def build_explore_options(self):
         """ build_explore_options : return the URL formatted version of the parameters """
     
-        return {'hl': 'en-US', 'tz': 240, 'req': '{"comparisonItem":[{"keyword":"'+self.keywords+'","geo":"'+self.geo+'","time":"'+self.format_times()+'"}],"category":0,"property":""}'}
+        citem = "["
+        first = True
+        for kw in self.keywords:
+            if not first:
+                citem += ","
+            if first:
+                first = False
+            citem += '{"keyword":"'+kw+'", "geo":"' + self.geo + '", "time":"' + self.format_times() + '"}'
+        citem += ']'
+        return {'hl': 'en-US', 'tz': 240, 'req': '{"comparisonItem":' + citem + ',"category":0,"property":""}'}
 
 
     def format_times(self): 
@@ -43,7 +66,7 @@ class connection:
         if (st >= et):
             raise ValueError('start_time should be inferior to end_time')
 
-        if ((et - st).days > 8):
+        if self.granularity in ["DAY", "WEEK", "MONTH"] or (et - st).days > 8:
             return st.date().strftime('%Y-%m-%d') + " " + et.date().strftime('%Y-%m-%d')
         return st.strftime('%Y-%m-%dT%H\\\\:%M\\\\:%S') + " " + et.strftime('%Y-%m-%dT%H\\\\:%M\\\\:%S')
 
@@ -74,7 +97,7 @@ class connection:
             i += 1
 
         if (r.status_code != 200):           
-            raise GoogleTrendsServerError(r.text, r.status_code)
+            raise GoogleTrendsServerError(r.text, r.status_code, r.request.url)
         
         return_value = json.loads(r.text[4:])
         for widget in return_value['widgets']:
@@ -102,6 +125,6 @@ class connection:
                 break
 
         if (r.status_code != 200):           
-            raise GoogleTrendsServerError(r.text)
+            raise GoogleTrendsServerError(r.text, r.status_code, r.request.url)
 
         return r.text

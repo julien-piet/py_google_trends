@@ -37,7 +37,7 @@ import sys
 
 def signal_handler(sig, frame):
     """ For more precise error handling """
-    print('gRAceFUllY EXiTinG')
+    print('  ~~~gRAceFUllY EXiTinG~~~~ ')
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -119,7 +119,7 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
             Second, iterative over intervals of that size """
 
     # Should depend on granularity
-    baseline = 3600
+    baseline = get_baseline(granularity)
 
     results = {}
     st = datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M:%S').timestamp()
@@ -127,7 +127,9 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
 
     st = math.floor(st / baseline) * baseline
     et = math.ceil(et / baseline) * baseline
+    et_orig = et
 
+    natural_granularity = None
     # First part : DFS to find suitable interval size
     while True:
         try:
@@ -146,14 +148,32 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
                     'ratio': 1} for key in values})
             break
         except ResolutionIncompatibility as e :
+            if natural_granularity is None:
+                natural_granularity = e.offered
             et -= (math.ceil((et - st) / (2*baseline))*baseline)
+        except ValueError:
+            # The chosen granularity is too imprecise - return the natural one instead
+            values = timeseries_parser(connection(\
+                    {'start_time': to_datetime(st),\
+                     'end_time': to_datetime(et_orig),\
+                     'keywords': keyword,\
+                     'geo': geo,\
+                     'granularity': natural_granularity}\
+                     ).run())
+            results.update({key: {\
+                    'time': key,\
+                    'value': values[key], \
+                    'ratio': 1} for key in values})
+            return results
+            
 
 
     # Second part : BFS to break the interval into segments
     interval_size = et - st
     overlap_size = min(interval_size-2*baseline,4*baseline)
-    et = math.ceil(datetime.datetime.strptime(end, '%Y-%m-%dT%H:%M:%S').timestamp() / baseline) * baseline
+    et = et_orig
     number_of_segments = math.ceil((et - st) / (interval_size - overlap_size))
+
 
     if debug:
         print("Found suitable size. Interval size is : " + str(interval_size) + ". Overlap size is : " + str(overlap_size) + ". Number of segments : " + str(number_of_segments))
@@ -161,13 +181,16 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
     for w in range(1, number_of_segments+1):
         s = st + ((interval_size-overlap_size) * w)
         e = s + interval_size
-        
+
         values = timeseries_parser(connection({\
                 'granularity': granularity, \
                 'start_time': to_datetime(s),\
                 'end_time': to_datetime(e),\
                 'keywords': keyword,\
                 'geo': geo}).run())
+
+        if debug:
+            print("From " + to_datetime(s).strftime('%Y-%m-%dT%H:%M:%S') + " to " + to_datetime(e).strftime('%Y-%m-%dT%H:%M:%S'))
 
         intersect = {key: results[key]['ratio']*results[key]['value']/values[key] for key in values if key in results and results[key]['value'] and values[key]}
         ratio = 1
@@ -181,6 +204,20 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
 
 ### Companion functions ###
 
+def get_baseline(granularity):
+    """ Returns the baseline for a given granularity """
+    bls = {'MINUTE': 3600,\
+             'EIGHT_MINUTE': 3600,\
+             'SIXTEEN_MINUTE': 3600,\
+             'HOUR': 3600,\
+             'DAY': 86400,\
+             'WEEK': 86400,\
+             'MONTH': 86400}
+    if granularity in bls:
+        return bls[granularity]
+    raise Error
+
+
 def to_datetime(ts):
     """ Returns ts (timestamp as a number) as a datetime """
     return datetime.datetime.fromtimestamp(ts)
@@ -192,7 +229,8 @@ def smart_split(a,b,gran):
     if b > a:
         return smart_split(b,a,gran)
 
-    baseline = 3600
+    baseline = get_baseline(gran)
+    
 
     if a%baseline != 0 or b%baseline != 0:
         raise Error
@@ -241,6 +279,6 @@ def enumerate_possible_granularities(start_date="2005-01-01T00:00:00", start_int
 
 ### Tests ###
 
-rslt = hybrid_timeseries("2015-12-01T00:00:00",  "2016-02-01T00:00:00", "christmas", debug=True)
-plt.plot([key for key in rslt], [rslt[key]['value'] * rslt[key]['ratio'] for key in rslt])
+rslt = hybrid_timeseries("2015-12-15T00:00:00",  "2016-01-07T00:00:00", ["christmas"], granularity="HOUR", debug=True)
+plt.scatter([int(key) for key in rslt], [rslt[key]['value'] * rslt[key]['ratio'] for key in rslt])
 plt.savefig('test.png')

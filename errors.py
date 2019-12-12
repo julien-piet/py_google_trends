@@ -10,10 +10,10 @@ class Error(Exception):
 
 class GoogleTrendsServerError(Error):
    """Raised when the google trends server returns an error"""
-   def __init__(self,  message="NOT SPECIFIED", code="NOT SPECIFIED"):
-       print(message[0:100])
-       print(code)
+   def __init__(self,  message="NOT SPECIFIED", code="NOT SPECIFIED", url="NOT SPECIFIED"):
        self.message = message
+       self.code = code
+       self.url = url
    
 
 class ResolutionIncompatibility(Error):
@@ -21,3 +21,5 @@ class ResolutionIncompatibility(Error):
     def __init__(self, offered, wanted):
         self.offered = offered;
         self.wanted = wanted
+
+
