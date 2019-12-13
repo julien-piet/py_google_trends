@@ -1,6 +1,6 @@
 """ connection.py -- handles the communication with google trends server """
 
-from errors import *
+from .errors import *
 
 import requests
 import datetime

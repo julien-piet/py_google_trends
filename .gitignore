@@ -1,6 +1,7 @@
 .DS_Store
 .env
 __pycache__/
+py_google_trends/__pycache__/
 env/
 *.swp
 .venv
