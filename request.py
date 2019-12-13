@@ -42,78 +42,10 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 
-### Main functions ###
-
-def timeseries(start, end, keyword, granularity="HOUR", geo=""):
-    """ Obtain the timeseries for that period at the given granularity """
-    # Only for Hour granularity at the moment
-
-    segment = (8*24*3600)-3600
-    overlap = 23*3600
-
-    st = time.mktime(datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M:%S').timetuple())
-    et = time.mktime(datetime.datetime.strptime(end, '%Y-%m-%dT%H:%M:%S').timetuple())
-    diff = (et - st)
-
-    results = {}
-    for w in range(math.floor(diff / (segment-overlap)) + 1):
-        s = st + ((segment-overlap) * w)
-        e = s + segment
-        
-        values = timeseries_parser(connection({'granularity': granularity, 'start_time': datetime.datetime.fromtimestamp(s), 'end_time': datetime.datetime.fromtimestamp(e), 'keywords': keyword, 'geo': geo}).run())
-        intersect = {key: results[key]['ratio']*results[key]['value']/values[key] for key in values if key in results and results[key]['value'] and values[key]}
-        ratio = 1
-        if len(intersect.values()):
-            ratio = statistics.mean(intersect.values())
-
-        results.update({key: {'time': key, 'value': values[key], 'ratio': ratio} for key in values if int(key) <= et})
+### Main function ###
 
 
-    return results
-
-
-
-
-def recursive_ts(start, end, keyword, granularity='HOUR', geo="", debug=False):
-    """ Recursive version that handles errors """
-
-    if debug:
-        print("Trying " + start + " to " + end)
-    
-    st = time.mktime(datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M:%S').timetuple())
-    et = time.mktime(datetime.datetime.strptime(end, '%Y-%m-%dT%H:%M:%S').timetuple())
-    diff = (et - st)
-
-    results = {}
-
-    try:
-        values = timeseries_parser(connection({'start_time': datetime.datetime.fromtimestamp(st), 'end_time': datetime.datetime.fromtimestamp(et), 'keywords': keyword, 'geo': geo,'granularity': granularity}).run())
-        results.update({key: {'time': key, 'value': values[key], 'ratio': 1} for key in values})
-    except ResolutionIncompatibility:
-        
-        if debug :
-            print("Too large - Breaking into two intervals")
-
-        split = smart_split(st,et,granularity)
-        end_first = datetime.datetime.fromtimestamp(split[1]).strftime('%Y-%m-%dT%H:%M:%S')
-        start_second = datetime.datetime.fromtimestamp(split[2]).strftime('%Y-%m-%dT%H:%M:%S')
-
-        first_segment = recursive_ts(start, end_first, keyword, granularity, geo, debug)
-        second_segment = recursive_ts(start_second, end, keyword, granularity, geo, debug)
-        if len(first_segment) and len(second_segment):
-            results.update(first_segment)
-            intersect = {key: results[key]['ratio']*results[key]['value']/(second_segment[key]['ratio'] * second_segment[key]['value']) for key in second_segment if key in results and results[key]['value'] and second_segment[key]['value']}
-            ratio = statistics.mean(intersect.values())
-            results.update({key: {'time': second_segment[key]['time'], 'value': second_segment[key]['value'], 'ratio': ratio * second_segment[key]['ratio']} for key in second_segment})
-        else:
-            results.update(first_segment)
-            results.update(second_segment)
-
-    finally:
-        return results
-
-
-def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
+def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
     """ Two step timeseries determination : 
             First, recursive on the first interval to find suitable interval size
             Second, iterative over intervals of that size """
@@ -152,7 +84,7 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
                 natural_granularity = e.offered
             et -= (math.ceil((et - st) / (2*baseline))*baseline)
         except ValueError:
-            # The chosen granularity is too imprecise - return the natural one instead
+            # The chosen granularity is too imprecise - return the one offered by trends instead
             values = timeseries_parser(connection(\
                     {'start_time': to_datetime(st),\
                      'end_time': to_datetime(et_orig),\
@@ -174,13 +106,16 @@ def hybrid_timeseries(start, end, keyword, granularity='HOUR', geo="", debug=Fal
     et = et_orig
     number_of_segments = math.ceil((et - st) / (interval_size - overlap_size))
 
-
     if debug:
         print("Found suitable size. Interval size is : " + str(interval_size) + ". Overlap size is : " + str(overlap_size) + ". Number of segments : " + str(number_of_segments))
 
     for w in range(1, number_of_segments+1):
         s = st + ((interval_size-overlap_size) * w)
         e = s + interval_size
+
+        if e > et:
+            e = et
+            s = e - interval_size
 
         values = timeseries_parser(connection({\
                 'granularity': granularity, \
@@ -223,32 +158,6 @@ def to_datetime(ts):
     return datetime.datetime.fromtimestamp(ts)
 
 
-def smart_split(a,b,gran):
-    """ Smartly split interval [a,b] into two intervals with some intersection that make sence for the given granularity """
-    
-    if b > a:
-        return smart_split(b,a,gran)
-
-    baseline = get_baseline(gran)
-    
-
-    if a%baseline != 0 or b%baseline != 0:
-        raise Error
-
-    # If the gap is too small, we cannot build two interleaving intervals
-    if a - b <= 2*baseline:
-        raise Error
-
-    # gap size is the size of the intersection. 
-    gap_size = min( a - b - 2*baseline , 4*baseline )
-    
-    middle = (a+b)/2
-    a2 = math.ceil( (middle + (gap_size/2)) / baseline ) * baseline
-    b2 = math.floor((middle - (gap_size/2)) / baseline ) * baseline
-
-    return [a,a2,b2,b]
-
-
 def timeseries_parser(raw):
     """ Takes the raw timeseries data from Google and converts it to a useable format """
 
@@ -279,6 +188,6 @@ def enumerate_possible_granularities(start_date="2005-01-01T00:00:00", start_int
 
 ### Tests ###
 
-rslt = hybrid_timeseries("2015-12-15T00:00:00",  "2016-01-07T00:00:00", ["christmas"], granularity="HOUR", debug=True)
+rslt = timeseries("2015-12-15T00:00:00",  "2016-01-07T00:00:00", ["christmas"], granularity="HOUR", debug=True)
 plt.scatter([int(key) for key in rslt], [rslt[key]['value'] * rslt[key]['ratio'] for key in rslt])
 plt.savefig('test.png')
