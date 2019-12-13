@@ -35,6 +35,13 @@ def timeseries_parser(raw):
     return {data[i]['time']: data[i]['value'] for i in range(len(data))}
 
 
+def timeseries_normalizing(ts):
+    """ Takes the result of a query and normalizes it across all values """
+    rslt = {key: [ts[key]['ratio'] * i for i in ts[key]['value']] for key in ts}
+    max_val = max([max(rslt[key]) for key in rslt])
+    return {key: [100 * i / max_val for i in rslt[key]] for key in rslt}
+
+
 def enumerate_possible_granularities(start_date="2005-01-01T00:00:00", start_interval="3600"):
     """ Search (perhaps non-exhaustively) all possible granularities """
     result = {}

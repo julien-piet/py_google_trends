@@ -105,7 +105,7 @@ def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
         
         results.update({key: {'time': key, 'value': values[key], 'ratio': ratio} for key in values if int(key) <= et})
 
-    return results
+    return timeseries_normalizing(results)
 
 
 ### Tests ###
