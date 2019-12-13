@@ -41,4 +41,4 @@ The smaller the granularity, the longer it will take for the utility to get all 
 
 ### Caveat
 
-This is not an official API for google trends. I do not garranty that the data is accurate, and extensive use might cause a temporary ban from google trend servers. I am not responsible for what you do with the software, use at your own risk.
+This is not an official API for google trends. I do not guarantee that the data is accurate, and extensive use might cause a temporary ban from google trend servers. I am not responsible for what you do with the software, use at your own risk.
