@@ -127,7 +127,7 @@ def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
         if debug:
             print("From " + to_datetime(s).strftime('%Y-%m-%dT%H:%M:%S') + " to " + to_datetime(e).strftime('%Y-%m-%dT%H:%M:%S'))
 
-        intersect = {key: results[key]['ratio']*results[key]['value']/values[key] for key in values if key in results and results[key]['value'] and values[key]}
+        intersect = {key: results[key]['ratio']*results[key]['value'][i]/values[key][i] for i in range(len(keyword)) for key in values if key in results and results[key]['value'] and values[key]}
         ratio = 1
         if len(intersect.values()):
             ratio = statistics.mean(intersect.values())
@@ -162,7 +162,7 @@ def timeseries_parser(raw):
     """ Takes the raw timeseries data from Google and converts it to a useable format """
 
     data = json.loads(raw[5:])['default']['timelineData']
-    return {data[i]['time']: data[i]['value'][0] for i in range(len(data))}
+    return {data[i]['time']: data[i]['value'] for i in range(len(data))}
 
 
 def enumerate_possible_granularities(start_date="2005-01-01T00:00:00", start_interval="3600"):
@@ -188,6 +188,8 @@ def enumerate_possible_granularities(start_date="2005-01-01T00:00:00", start_int
 
 ### Tests ###
 
-rslt = timeseries("2015-12-15T00:00:00",  "2016-01-07T00:00:00", ["christmas"], granularity="HOUR", debug=True)
-plt.scatter([int(key) for key in rslt], [rslt[key]['value'] * rslt[key]['ratio'] for key in rslt])
+keywords = ["christmas", "santa"]
+rslt = timeseries("2015-12-15T00:00:00",  "2016-01-07T00:00:00", keywords, granularity="HOUR", debug=True)
+for i in range(len(keywords)):
+    plt.scatter([int(key) for key in rslt], [rslt[key]['ratio'] * rslt[key]['value'][i] for key in rslt])
 plt.savefig('test.png')
