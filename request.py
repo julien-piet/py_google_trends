@@ -1,23 +1,7 @@
 """ request.py -- handles the communication with google trend server """
 
 """ TODO
- * Test other than hours
  * Hybrid approach, use a precomputed size, if doesn't work find the new parameters
- * Multiple keywords
-
- 
- MAX (tested) seconds for each category
-
- *** might be missing categories, search is not exhaustive***
- 
- MINUTE : 14400
- EIGHT_MINUTE : 115200
- SIXTEEN_MINUTE : 230400
- HOUR : 460800
- DAY : 14745600
- WEEK : 58982400
- MONTH : Upped bound not found
-
 """
 
 from errors import *
@@ -29,21 +13,8 @@ import time
 import json
 import math
 import statistics
-import matplotlib.pyplot as plt
-
-import signal
-import sys
-
-
-def signal_handler(sig, frame):
-    """ For more precise error handling """
-    print('  ~~~gRAceFUllY EXiTinG~~~~ ')
-    sys.exit(0)
-signal.signal(signal.SIGINT, signal_handler)
-
 
 ### Main function ###
-
 
 def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
     """ Two step timeseries determination : 
@@ -188,8 +159,7 @@ def enumerate_possible_granularities(start_date="2005-01-01T00:00:00", start_int
 
 ### Tests ###
 
+"""
 keywords = ["christmas", "santa"]
 rslt = timeseries("2015-12-15T00:00:00",  "2016-01-07T00:00:00", keywords, granularity="HOUR", debug=True)
-for i in range(len(keywords)):
-    plt.scatter([int(key) for key in rslt], [rslt[key]['ratio'] * rslt[key]['value'][i] for key in rslt])
-plt.savefig('test.png')
+"""
