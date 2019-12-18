@@ -98,7 +98,7 @@ def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
         if debug:
             print("From " + to_datetime(s).strftime('%Y-%m-%dT%H:%M:%S') + " to " + to_datetime(e).strftime('%Y-%m-%dT%H:%M:%S'))
 
-        intersect = {key: results[key]['ratio']*results[key]['value'][i]/values[key][i] for i in range(len(keyword)) for key in values if key in results and results[key]['value'] and values[key]}
+        intersect = {key: results[key]['ratio']*results[key]['value'][i]/values[key][i] for i in range(len(keyword)) for key in values if key in results and results[key]['value'] and values[key][i]}
         ratio = 1
         if len(intersect.values()):
             ratio = statistics.mean(intersect.values())
