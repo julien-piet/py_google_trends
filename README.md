@@ -18,7 +18,7 @@ Import the module using :
 The timeseries function included in the package allows to query the Google trends server for a specific set of keywords, across any time frame for any granularity. Syntax :
 
 ```
-timeseries(start, end, keywords, granularity="HOUR", debug=False)
+timeseries(start, end, keywords, granularity="HOUR", debug=False, rate_limit=0)
 
 ### Returns ###
 A dictionnary, giving for each timestamp between start and end and array containing the popularity of each keyword
@@ -29,6 +29,7 @@ end         : end date, same format
 keywords    : array of keywords to search for
 granularity : resolution of the search
 debug       : set to True to enter verbose mode
+rate_limit  : number of seconds to wait between two requests, in seconds (default is 0)
 ```
 
 #### Granularity

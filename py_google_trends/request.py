@@ -16,7 +16,7 @@ import statistics
 
 ### Main function ###
 
-def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
+def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False, rate_limit=0):
     """ Two step timeseries determination : 
             First, recursive on the first interval to find suitable interval size
             Second, iterative over intervals of that size """
@@ -68,6 +68,9 @@ def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
                     'value': values[key], \
                     'ratio': 1} for key in values})
             return results
+        finally:
+            if rate_limit:
+                time.sleep(rate_limit)
             
 
 
@@ -94,6 +97,9 @@ def timeseries(start, end, keyword, granularity='HOUR', geo="", debug=False):
                 'end_time': to_datetime(e),\
                 'keywords': keyword,\
                 'geo': geo}).run())
+
+        if rate_limit:
+            time.sleep(rate_limit)
 
         if debug:
             print("From " + to_datetime(s).strftime('%Y-%m-%dT%H:%M:%S') + " to " + to_datetime(e).strftime('%Y-%m-%dT%H:%M:%S'))
